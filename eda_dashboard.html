@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>온라인 리테일 데이터 분석 대시보드 (Advanced EDA)</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            outfit: ['Outfit', 'sans-serif'],
+          },
+          colors: {
+            darkbg: '#030712',
+            cardbg: 'rgba(17, 24, 39, 0.65)',
+            bordercolor: 'rgba(255, 255, 255, 0.08)',
+            neonCyan: '#06b6d4',
+            neonPink: '#ec4899',
+            neonPurple: '#a855f7',
+            neonGreen: '#10b981',
+            neonOrange: '#f59e0b',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* 스크롤바 디자인 정의 */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(31, 41, 55, 0.3);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(156, 163, 175, 0.3);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(156, 163, 175, 0.5);
+    }
+
+    /* 글래스모피즘 효과 정의 */
+    .glass-card {
+      background: rgba(17, 24, 39, 0.6);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    }
+
+    .glass-input {
+      background: rgba(31, 41, 55, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: white;
+      transition: all 0.3s ease;
+    }
+    .glass-input:focus {
+      border-color: #06b6d4;
+      box-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
+      outline: none;
+    }
+
+    /* 네온 효과 */
+    .neon-text-cyan {
+      text-shadow: 0 0 8px rgba(6, 182, 212, 0.6);
+    }
+    .neon-text-pink {
+      text-shadow: 0 0 8px rgba(236, 72, 153, 0.6);
+    }
+    .neon-border-cyan:hover {
+      border-color: rgba(6, 182, 212, 0.6);
+      box-shadow: 0 0 15px rgba(6, 182, 212, 0.25);
+    }
+    
+    /* 애니메이션 효과 */
+    @keyframes pulse-slow {
+      0%, 100% { opacity: 0.2; transform: scale(1); }
+      50% { opacity: 0.3; transform: scale(1.05); }
+    }
+    .animate-pulse-slow {
+      animation: pulse-slow 8s infinite ease-in-out;
+    }
+
+    /* 페이드인 트랜지션 */
+    .tab-content {
+      display: none;
+      opacity: 0;
+      transition: opacity 0.4s ease-in-out;
+    }
+    .tab-content.active {
+      display: block;
+      opacity: 1;
+    }
+  </style>
+</head>
+<body class="bg-darkbg text-gray-100 font-sans min-h-screen relative overflow-x-hidden">
+
+  <!-- 네온 효과 배경용 데코레이션 요소 -->
+  <div class="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-cyan-900/20 rounded-full blur-[120px] animate-pulse-slow pointer-events-none z-0"></div>
+  <div class="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-900/20 rounded-full blur-[120px] animate-pulse-slow pointer-events-none z-0"></div>
+
+  <!-- 메인 대시보드 레이아웃 -->
+  <div class="flex flex-col min-h-screen relative z-10">
+    
+    <!-- 상단 헤더 영역 -->
+    <header class="glass-card sticky top-0 z-50 px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+      <div class="flex items-center gap-3">
+        <div class="bg-gradient-to-tr from-cyan-500 to-purple-600 p-2.5 rounded-xl shadow-lg shadow-cyan-500/20">
+          <i class="fa-solid fa-chart-line text-white text-xl"></i>
+        </div>
+        <div>
+          <h1 class="text-xl md:text-2xl font-bold font-outfit tracking-tight bg-gradient-to-r from-white via-cyan-200 to-purple-300 bg-clip-text text-transparent">
+            Online Retail Advanced EDA Dashboard
+          </h1>
+          <p class="text-xs text-gray-400">데이터 기반 온라인 소매업 거래 분석 및 의사결정 시뮬레이터</p>
+        </div>
+      </div>
+
+      <!-- 글로벌 필터 및 컨트롤 -->
+      <div class="flex flex-wrap items-center gap-3">
+        <span class="text-xs px-3 py-1.5 rounded-full bg-cyan-900/40 border border-cyan-500/30 text-cyan-300 font-medium">
+          <i class="fa-solid fa-database mr-1.5"></i> 536,641 Rows Loaded
+        </span>
+        <span class="text-xs px-3 py-1.5 rounded-full bg-purple-900/40 border border-purple-500/30 text-purple-300 font-medium">
+          <i class="fa-solid fa-calendar mr-1.5"></i> Dec 2010 - Dec 2011
+        </span>
+      </div>
+    </header>
+
+    <!-- 메인 대시보드 컨텐츠 -->
+    <main class="flex-grow p-4 md:p-6 lg:p-8 space-y-6">
+
+      <!-- KPI 지표 요약 카드 그리드 -->
+      <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- KPI 1 -->
+        <div class="glass-card p-5 rounded-2xl flex items-center justify-between transition-transform duration-300 hover:scale-[1.02] border-l-4 border-l-cyan-500">
+          <div>
+            <p class="text-xs text-gray-400 uppercase tracking-wider font-semibold">총 매출액</p>
+            <h3 class="text-2xl font-bold font-outfit mt-1 text-white">£9,723,333</h3>
+            <p class="text-xs text-cyan-400 mt-1"><i class="fa-solid fa-arrow-trend-up mr-1"></i> 하반기 급상승 추세</p>
+          </div>
+          <div class="p-3 bg-cyan-500/10 rounded-xl text-cyan-400">
+            <i class="fa-solid fa-pound-sign text-2xl"></i>
+          </div>
+        </div>
+
+        <!-- KPI 2 -->
+        <div class="glass-card p-5 rounded-2xl flex items-center justify-between transition-transform duration-300 hover:scale-[1.02] border-l-4 border-l-purple-500">
+          <div>
+            <p class="text-xs text-gray-400 uppercase tracking-wider font-semibold">총 주문 건수</p>
+            <h3 class="text-2xl font-bold font-outfit mt-1 text-white">536,641 건</h3>
+            <p class="text-xs text-purple-400 mt-1"><i class="fa-solid fa-calculator mr-1"></i> 중복 데이터 5,268건 정제</p>
+          </div>
+          <div class="p-3 bg-purple-500/10 rounded-xl text-purple-400">
+            <i class="fa-solid fa-receipt text-2xl"></i>
+          </div>
+        </div>
+
+        <!-- KPI 3 -->
+        <div class="glass-card p-5 rounded-2xl flex items-center justify-between transition-transform duration-300 hover:scale-[1.02] border-l-4 border-l-emerald-500">
+          <div>
+            <p class="text-xs text-gray-400 uppercase tracking-wider font-semibold">베스트셀러 품목</p>
+            <h3 class="text-2xl font-bold font-outfit mt-1 text-white">85123A</h3>
+            <p class="text-xs text-emerald-400 mt-1"><i class="fa-solid fa-star mr-1"></i> 2,301회 주문 기록</p>
+          </div>
+          <div class="p-3 bg-emerald-500/10 rounded-xl text-emerald-400">
+            <i class="fa-solid fa-box text-2xl"></i>
+          </div>
+        </div>
+
+        <!-- KPI 4 -->
+        <div class="glass-card p-5 rounded-2xl flex items-center justify-between transition-transform duration-300 hover:scale-[1.02] border-l-4 border-l-amber-500">
+          <div>
+            <p class="text-xs text-gray-400 uppercase tracking-wider font-semibold">핵심 매출 시장</p>
+            <h3 class="text-2xl font-bold font-outfit mt-1 text-white">영국 (UK)</h3>
+            <p class="text-xs text-amber-400 mt-1"><i class="fa-solid fa-globe mr-1"></i> 전체 주문의 91.4% 차지</p>
+          </div>
+          <div class="p-3 bg-amber-500/10 rounded-xl text-amber-400">
+            <i class="fa-solid fa-map-location-dot text-2xl"></i>
+          </div>
+        </div>
+      </section>
+
+      <!-- 네비게이션 탭 메뉴 -->
+      <nav class="flex flex-wrap gap-2 border-b border-gray-800 pb-2">
+        <button onclick="switchTab('overview')" id="tab-overview" class="tab-btn px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 bg-cyan-600/30 text-cyan-200 border border-cyan-500/30 shadow-lg shadow-cyan-500/10">
+          <i class="fa-solid fa-chart-pie mr-2"></i>종합 대시보드
+        </button>
+        <button onclick="switchTab('sales-time')" id="tab-sales-time" class="tab-btn px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 text-gray-400 hover:bg-gray-800 hover:text-white border border-transparent">
+          <i class="fa-solid fa-clock-rotate-left mr-2"></i>매출 & 시간 분석
+        </button>
+        <button onclick="switchTab('customer-country')" id="tab-customer-country" class="tab-btn px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 text-gray-400 hover:bg-gray-800 hover:text-white border border-transparent">
+          <i class="fa-solid fa-users mr-2"></i>고객 & 국가 세분화
+        </button>
+        <button onclick="switchTab('product-keyword')" id="tab-product-keyword" class="tab-btn px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 text-gray-400 hover:bg-gray-800 hover:text-white border border-transparent">
+          <i class="fa-solid fa-tags mr-2"></i>상품 & 키워드 분석
+        </button>
+        <button onclick="switchTab('dist-corr')" id="tab-dist-corr" class="tab-btn px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 text-gray-400 hover:bg-gray-800 hover:text-white border border-transparent">
+          <i class="fa-solid fa-circle-nodes mr-2"></i>분포 & 상관 분석
+        </button>
+        <button onclick="switchTab('strategy')" id="tab-strategy" class="tab-btn px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 text-gray-400 hover:bg-gray-800 hover:text-white border border-transparent">
+          <i class="fa-solid fa-lightbulb mr-2"></i>전략 실행 로드맵
+        </button>
+      </nav>
+
+      <!-- 탭 컨텐츠 영역 -->
+      
+      <!-- 1. 종합 대시보드 탭 -->
+      <section id="content-overview" class="tab-content active space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          <!-- 좌측: 비즈니스 요약 리포트 카드 -->
+          <div class="glass-card p-6 rounded-2xl lg:col-span-1 space-y-6">
+            <h3 class="text-lg font-bold border-b border-gray-800 pb-3 flex items-center text-cyan-300 font-outfit">
+              <i class="fa-solid fa-file-invoice mr-2.5"></i>비즈니스 리포트 요약
+            </h3>
+            
+            <div class="space-y-4 text-sm text-gray-300 leading-relaxed">
+              <p>
+                본 대시보드는 영국에 위치한 온라인 소매 업체의 거래 데이터를 기반으로 작동합니다. 거래의 대다수는 <span class="text-cyan-300 font-semibold">인테리어 소품 및 패키지 데코레이션 상품</span>군으로 형성되어 있습니다.
+              </p>
+              <div class="p-3.5 bg-gray-900/50 rounded-xl border border-gray-800 space-y-2">
+                <div class="flex justify-between text-xs">
+                  <span class="text-gray-400">데이터 처리 상태</span>
+                  <span class="text-green-400 font-medium"><i class="fa-solid fa-circle-check"></i> 전처리 완료</span>
+                </div>
+                <div class="flex justify-between text-xs">
+                  <span class="text-gray-400">결측치 Description</span>
+                  <span class="text-gray-200">'Unknown' 대체</span>
+                </div>
+                <div class="flex justify-between text-xs">
+                  <span class="text-gray-400">비회원 주문 비율</span>
+                  <span class="text-amber-400 font-medium">약 25.2% (ID 누락)</span>
+                </div>
+              </div>
+              <p>
+                <strong>핵심 관전 포인트:</strong><br>
+                수량(Quantity) 및 단가(UnitPrice)에서 광범위한 극단값 및 마이너스 값(반품)이 존재하므로, 평균값보다 분위수와 세그먼트별 필터링에 기초한 비즈니스 접근 방식이 효과적입니다.
+              </p>
+            </div>
+
+            <!-- 미니 위젯: VIP 고객 가치 시뮬레이터 -->
+            <div class="p-4 bg-gradient-to-br from-cyan-900/30 to-purple-900/30 rounded-2xl border border-cyan-500/20 space-y-3">
+              <h4 class="text-xs uppercase tracking-wider font-bold text-cyan-300 flex items-center">
+                <i class="fa-solid fa-sliders mr-2"></i>AOV 시뮬레이터 (B2B 대상)
+              </h4>
+              <p class="text-xs text-gray-400">도매 등급제 할인 적용 시 연간 매출 변화 예측</p>
+              
+              <div class="space-y-2">
+                <label class="text-xs flex justify-between">
+                  <span>도매 구매량 등급 할인율</span>
+                  <span id="discount-val" class="text-cyan-300 font-bold">5%</span>
+                </label>
+                <input type="range" id="discount-range" min="0" max="20" value="5" class="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-cyan-500" oninput="simulateAOV(this.value)">
+                
+                <div class="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-gray-800/80">
+                  <div>
+                    <span class="text-[10px] text-gray-400">VIP 재구매 예측율</span>
+                    <p id="vip-retention" class="text-sm font-bold text-white">96.5%</p>
+                  </div>
+                  <div>
+                    <span class="text-[10px] text-gray-400">예상 매출 변동</span>
+                    <p id="sales-change" class="text-sm font-bold text-emerald-400">+£124,500</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 우측: 핵심 요약 차트 2개 그리드 -->
+          <div class="lg:col-span-2 space-y-6">
+            
+            <!-- 월별 매출 트렌드 요약 차트 -->
+            <div class="glass-card p-6 rounded-2xl">
+              <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold font-outfit text-white flex items-center">
+                  <i class="fa-solid fa-chart-line text-cyan-400 mr-2.5"></i>월별 매출 트렌드 (최근 1년)
+                </h3>
+                <span class="text-xs text-gray-400">단위: 파운드 (£)</span>
+              </div>
+              <div class="h-[220px] relative">
+                <canvas id="chart-monthly-summary"></canvas>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <!-- 요일별 주문 분포 요약 차트 -->
+              <div class="glass-card p-6 rounded-2xl">
+                <h3 class="text-base font-bold text-white mb-3 flex items-center">
+                  <i class="fa-solid fa-calendar-day text-purple-400 mr-2.5"></i>요일별 주문 분포
+                </h3>
+                <div class="h-[180px] relative">
+                  <canvas id="chart-weekly-summary"></canvas>
+                </div>
+              </div>
+
+              <!-- 핵심 국가별 주문 점유율 -->
+              <div class="glass-card p-6 rounded-2xl">
+                <h3 class="text-base font-bold text-white mb-3 flex items-center">
+                  <i class="fa-solid fa-earth-americas text-emerald-400 mr-2.5"></i>국가별 주문 점유율 (Top 5)
+                </h3>
+                <div class="h-[180px] relative">
+                  <canvas id="chart-country-summary"></canvas>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. 매출 & 시간 분석 탭 -->
+      <section id="content-sales-time" class="tab-content space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- 월별 매출 상세 차트 -->
+          <div class="glass-card p-6 rounded-2xl">
+            <h3 class="text-lg font-bold text-white mb-3 flex items-center">
+              <i class="fa-solid fa-chart-area text-cyan-400 mr-2.5"></i>연간 월별 총 매출 상세 트렌드
+            </h3>
+            <p class="text-xs text-gray-400 mb-4">하반기 크리스마스 쇼핑 시즌(11월) 매출 급상승 흐름 관찰 가능</p>
+            <div class="h-[300px] relative">
+              <canvas id="chart-monthly-detail"></canvas>
+            </div>
+          </div>
+
+          <!-- 시간대별 주문 분포 차트 -->
+          <div class="glass-card p-6 rounded-2xl">
+            <h3 class="text-lg font-bold text-white mb-3 flex items-center">
+              <i class="fa-solid fa-hourglass-half text-amber-400 mr-2.5"></i>시간대별 주문 분포 (Hourly Orders)
+            </h3>
+            <p class="text-xs text-gray-400 mb-4">정오(12시)를 기점으로 주문량 최고점 기록 후 점진적 하강</p>
+            <div class="h-[300px] relative">
+              <canvas id="chart-hourly-detail"></canvas>
+            </div>
+          </div>
+
+          <!-- 요일별 주문량 상세 (주말 정책 비교) -->
+          <div class="glass-card p-6 rounded-2xl lg:col-span-2">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+              <div>
+                <h3 class="text-lg font-bold text-white flex items-center">
+                  <i class="fa-solid fa-calendar-week text-purple-400 mr-2.5"></i>요일별 전체 주문 분석 및 해석
+                </h3>
+                <p class="text-xs text-gray-400">토요일의 급격한 주문 감소(433건)는 시스템 및 물류 운영 정책상의 요인으로 해석됨</p>
+              </div>
+              <div class="text-right">
+                <span class="text-xs text-gray-400">주중 최고 거래 요일:</span>
+                <span class="text-sm font-bold text-purple-400 block">목요일 (Thursday)</span>
+              </div>
+            </div>
+            <div class="h-[250px] relative">
+              <canvas id="chart-weekly-detail"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. 고객 & 국가 세분화 탭 -->
+      <section id="content-customer-country" class="tab-content space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          
+          <!-- 국가별 주문수 Top 30 -->
+          <div class="glass-card p-6 rounded-2xl flex flex-col">
+            <div class="flex justify-between items-center mb-3">
+              <h3 class="text-lg font-bold text-white flex items-center">
+                <i class="fa-solid fa-globe text-cyan-400 mr-2.5"></i>국가별 주문수 Top 30 (영국 제외)
+              </h3>
+              <span class="text-xs text-gray-400">주문수 건</span>
+            </div>
+            <p class="text-xs text-gray-400 mb-4">해외 매출 확장을 위한 1차 타겟 국가 식별 목적 (영국 수치: 490,300건 별도 격리)</p>
+            <div class="h-[350px] relative flex-grow">
+              <canvas id="chart-country-top30"></canvas>
+            </div>
+          </div>
+
+          <!-- 고객별 총 구매액 Top 30 (VIP 파레토 분포) -->
+          <div class="glass-card p-6 rounded-2xl flex flex-col">
+            <div class="flex justify-between items-center mb-3">
+              <h3 class="text-lg font-bold text-white flex items-center">
+                <i class="fa-solid fa-crown text-amber-400 mr-2.5"></i>고객별 총 구매액 Top 30 (VVIP)
+              </h3>
+              <span class="text-xs text-gray-400">단위: 파운드 (£)</span>
+            </div>
+            <p class="text-xs text-gray-400 mb-4">상위 소수 VIP 고객층이 전체 매출의 상당 부분을 점유하는 파레토 현상 발생</p>
+            <div class="h-[350px] relative flex-grow">
+              <canvas id="chart-customer-top30"></canvas>
+            </div>
+          </div>
+
+          <!-- VIP 분석 심층 인사이트 요약 보강 -->
+          <div class="glass-card p-6 rounded-2xl lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 bg-gradient-to-r from-gray-900/60 via-cyan-950/20 to-gray-900/60">
+            <div>
+              <h4 class="text-sm font-bold text-cyan-300 mb-2 uppercase tracking-wide"><i class="fa-solid fa-lightbulb mr-2"></i>국가별 확장 인사이트</h4>
+              <p class="text-xs text-gray-300 leading-relaxed">
+                영국 외 국가 중 <strong>독일(9,480건)</strong>과 <strong>프랑스(8,541건)</strong>, 그리고 <strong>아일랜드(8,184건)</strong>가 독보적인 거래량을 유지하고 있습니다. 이는 배송 편의성과 인접성 때문으로 판단되며, 이 3개국을 기점으로 현지 통화 결제 및 맞춤형 배송망 구축이 우선되어야 합니다.
+              </p>
+            </div>
+            <div>
+              <h4 class="text-sm font-bold text-amber-300 mb-2 uppercase tracking-wide"><i class="fa-solid fa-crown mr-2"></i>VVIP 마케팅 방향</h4>
+              <p class="text-xs text-gray-300 leading-relaxed">
+                고객 ID 14646.0(약 £279,489) 및 18102.0(약 £256,438) 등의 초고액 바이어들은 전체 소매점 매출의 상당 부분을 지탱합니다. 이들은 전담 매니저 배정과 주문량 비례 특별 할인 혜택 등 B2B 로열티 프로그램을 필수로 수립해야 이탈을 막을 수 있습니다.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. 상품 & 키워드 분석 탭 -->
+      <section id="content-product-keyword" class="tab-content space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          
+          <!-- 상품 코드별 주문수 Top 30 -->
+          <div class="glass-card p-6 rounded-2xl flex flex-col">
+            <h3 class="text-lg font-bold text-white mb-3 flex items-center">
+              <i class="fa-solid fa-barcode text-purple-400 mr-2.5"></i>상품 코드별 주문수 Top 30
+            </h3>
+            <p class="text-xs text-gray-400 mb-4">대표 품목 85123A 및 22423 등의 쏠림 현상. 품절 기회비용 방지 전략용 재고 지표</p>
+            <div class="h-[350px] relative flex-grow">
+              <canvas id="chart-product-top30"></canvas>
+            </div>
+          </div>
+
+          <!-- 상품 설명 키워드 TF-IDF Top 30 -->
+          <div class="glass-card p-6 rounded-2xl flex flex-col">
+            <h3 class="text-lg font-bold text-white mb-3 flex items-center">
+              <i class="fa-solid fa-magnifying-glass text-cyan-400 mr-2.5"></i>상품 설명 키워드 Top 30 (TF-IDF 가중치)
+            </h3>
+            <p class="text-xs text-gray-400 mb-4">설명 텍스트에서 도출된 주요 단어 가중치. 선물 세트('set') 및 색상, 감성 키워드가 주류</p>
+            <div class="h-[350px] relative flex-grow">
+              <canvas id="chart-keyword-top30"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. 분포 & 상관 분석 탭 -->
+      <section id="content-dist-corr" class="tab-content space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          
+          <!-- 수량(Quantity) 분포 (로그 스케일 시뮬레이션) -->
+          <div class="glass-card p-6 rounded-2xl">
+            <h3 class="text-lg font-bold text-white mb-3 flex items-center">
+              <i class="fa-solid fa-chart-bar text-cyan-400 mr-2.5"></i>주문 수량(Quantity) 구간별 분포
+            </h3>
+            <p class="text-xs text-gray-400 mb-4">소액 고객층(1~10개 구매)의 절대적 비중 및 음수 영역(반품/취소) 시각화</p>
+            <div class="h-[250px] relative">
+              <canvas id="chart-qty-dist"></canvas>
+            </div>
+          </div>
+
+          <!-- 단가(UnitPrice) 분포 (로그 스케일 시뮬레이션) -->
+          <div class="glass-card p-6 rounded-2xl">
+            <h3 class="text-lg font-bold text-white mb-3 flex items-center">
+              <i class="fa-solid fa-tag text-emerald-400 mr-2.5"></i>상품 단가(UnitPrice) 구간별 분포
+            </h3>
+            <p class="text-xs text-gray-400 mb-4">대다수 품목이 1~5파운드 범위에 몰려 있는 중저가 선물용품 위주 비즈니스 특성</p>
+            <div class="h-[250px] relative">
+              <canvas id="chart-price-dist"></canvas>
+            </div>
+          </div>
+
+          <!-- 수량 vs 단가 산점도 (Scatter) -->
+          <div class="glass-card p-6 rounded-2xl">
+            <h3 class="text-lg font-bold text-white mb-3 flex items-center">
+              <i class="fa-solid fa-circle-nodes text-purple-400 mr-2.5"></i>수량 vs 단가 상관계 분석 (산점도 샘플)
+            </h3>
+            <p class="text-xs text-gray-400 mb-4">단가가 매우 낮은 제품군에서 초고량 주문이 폭발적으로 발생하는 경향성 증명</p>
+            <div class="h-[250px] relative">
+              <canvas id="chart-qty-price-scatter"></canvas>
+            </div>
+          </div>
+
+          <!-- 수치형 변수 상관관계 히트맵 (커스텀 CSS/JS 그리드) -->
+          <div class="glass-card p-6 rounded-2xl flex flex-col justify-between">
+            <div>
+              <h3 class="text-lg font-bold text-white mb-2 flex items-center">
+                <i class="fa-solid fa-table-cells-large text-pink-400 mr-2.5"></i>수치형 변수 상관관계 히트맵
+              </h3>
+              <p class="text-xs text-gray-400 mb-4">Quantity와 TotalPrice 간의 아주 강한 양의 상관관계(0.89) 확인</p>
+            </div>
+            
+            <!-- 커스텀 HTML/CSS 히트맵 -->
+            <div class="flex-grow flex items-center justify-center py-4">
+              <div class="w-full max-w-[320px] bg-gray-900/60 p-4 rounded-xl border border-gray-800 space-y-3">
+                <div class="grid grid-cols-5 text-center text-[10px] text-gray-400 font-bold border-b border-gray-800 pb-2">
+                  <div>변수</div>
+                  <div>수량</div>
+                  <div>단가</div>
+                  <div>총액</div>
+                  <div>시간</div>
+                </div>
+                
+                <!-- 수량 행 -->
+                <div class="grid grid-cols-5 text-center text-xs items-center">
+                  <div class="text-[10px] text-gray-400 text-left font-bold truncate">수량</div>
+                  <div class="bg-cyan-500/90 text-white font-bold p-1.5 rounded m-0.5">1.00</div>
+                  <div class="bg-gray-800 text-gray-400 p-1.5 rounded m-0.5">-0.00</div>
+                  <div class="bg-cyan-500/80 text-white font-bold p-1.5 rounded m-0.5">0.89</div>
+                  <div class="bg-gray-800/80 text-gray-400 p-1.5 rounded m-0.5">-0.01</div>
+                </div>
+                <!-- 단가 행 -->
+                <div class="grid grid-cols-5 text-center text-xs items-center">
+                  <div class="text-[10px] text-gray-400 text-left font-bold truncate">단가</div>
+                  <div class="bg-gray-800 text-gray-400 p-1.5 rounded m-0.5">-0.00</div>
+                  <div class="bg-cyan-500/90 text-white font-bold p-1.5 rounded m-0.5">1.00</div>
+                  <div class="bg-pink-500/40 text-pink-100 p-1.5 rounded m-0.5">-0.16</div>
+                  <div class="bg-gray-800/50 text-gray-400 p-1.5 rounded m-0.5">0.00</div>
+                </div>
+                <!-- 총액 행 -->
+                <div class="grid grid-cols-5 text-center text-xs items-center">
+                  <div class="text-[10px] text-gray-400 text-left font-bold truncate">총액</div>
+                  <div class="bg-cyan-500/80 text-white font-bold p-1.5 rounded m-0.5">0.89</div>
+                  <div class="bg-pink-500/40 text-pink-100 p-1.5 rounded m-0.5">-0.16</div>
+                  <div class="bg-cyan-500/90 text-white font-bold p-1.5 rounded m-0.5">1.00</div>
+                  <div class="bg-gray-800/80 text-gray-400 p-1.5 rounded m-0.5">-0.01</div>
+                </div>
+                <!-- 시간 행 -->
+                <div class="grid grid-cols-5 text-center text-xs items-center">
+                  <div class="text-[10px] text-gray-400 text-left font-bold truncate">시간</div>
+                  <div class="bg-gray-800/80 text-gray-400 p-1.5 rounded m-0.5">-0.01</div>
+                  <div class="bg-gray-800/50 text-gray-400 p-1.5 rounded m-0.5">0.00</div>
+                  <div class="bg-gray-800/80 text-gray-400 p-1.5 rounded m-0.5">-0.01</div>
+                  <div class="bg-cyan-500/90 text-white font-bold p-1.5 rounded m-0.5">1.00</div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <!-- 6. 전략 실행 로드맵 탭 -->
+      <section id="content-strategy" class="tab-content space-y-6">
+        <div class="glass-card p-6 md:p-8 rounded-2xl space-y-8">
+          
+          <div class="border-b border-gray-800 pb-5">
+            <h3 class="text-2xl font-bold font-outfit text-white flex items-center gap-3">
+              <i class="fa-solid fa-lightbulb text-cyan-400 animate-pulse"></i>데이터 진단 기반 심층 비즈니스 전략
+            </h3>
+            <p class="text-sm text-gray-400 mt-1">온라인 리테일 거래 추이에서 도출한 핵심 액션 플랜과 실행 로드맵</p>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            <!-- 전략 세부 내용 아코디언/카드 -->
+            <div class="space-y-6">
+              
+              <!-- 전략 1 -->
+              <div class="p-5 rounded-xl bg-gray-900/50 border border-gray-800 space-y-3">
+                <div class="flex items-center gap-3">
+                  <span class="bg-cyan-500/10 text-cyan-400 p-2 rounded-lg font-bold font-outfit">01</span>
+                  <h4 class="font-bold text-white">VIP 등급제 도입 및 파레토 분산 관리</h4>
+                </div>
+                <p class="text-xs text-gray-400 leading-relaxed">
+                  매출 상위 5대 고객의 기여도가 극단적으로 높은 만큼 B2B 맞춤형 리테이너 프로그램(자동 재재발주, 리드타임 감축)이 필수입니다. 누적액 기준 로열티 프로그램 신설을 통한 VIP 이탈 장벽 형성이 필요합니다.
+                </p>
+              </div>
+
+              <!-- 전략 2 -->
+              <div class="p-5 rounded-xl bg-gray-900/50 border border-gray-800 space-y-3">
+                <div class="flex items-center gap-3">
+                  <span class="bg-purple-500/10 text-purple-400 p-2 rounded-lg font-bold font-outfit">02</span>
+                  <h4 class="font-bold text-white">서유럽 물류 허브 기반 시장 다각화</h4>
+                </div>
+                <p class="text-xs text-gray-400 leading-relaxed">
+                  영국 내수 의존도(91.4%) 완화를 위하여 독일, 프랑스, 아일랜드를 타겟으로 통관 및 물류 체계를 정비합니다. 유럽 대륙 내 파트너 풀필먼트 센터 확보를 통해 배송일수 단축과 물류비용 절감을 추구해야 합니다.
+                </p>
+              </div>
+
+              <!-- 전략 3 -->
+              <div class="p-5 rounded-xl bg-gray-900/50 border border-gray-800 space-y-3">
+                <div class="flex items-center gap-3">
+                  <span class="bg-emerald-500/10 text-emerald-400 p-2 rounded-lg font-bold font-outfit">03</span>
+                  <h4 class="font-bold text-white">안전재고 알고리즘 및 묶음 상품 개발</h4>
+                </div>
+                <p class="text-xs text-gray-400 leading-relaxed">
+                  인기 코드('85123A' 등)의 품절 사태 방지를 위해 안전재고(Safety Stock)를 실시간 반영하고, TF-IDF 핵심 키워드인 'set', 'vintage' 콘셉트를 활용한 테마 중심 기획 세트 상품 개발을 권고합니다.
+                </p>
+              </div>
+
+              <!-- 전략 4 -->
+              <div class="p-5 rounded-xl bg-gray-900/50 border border-gray-800 space-y-3">
+                <div class="flex items-center gap-3">
+                  <span class="bg-amber-500/10 text-amber-400 p-2 rounded-lg font-bold font-outfit">04</span>
+                  <h4 class="font-bold text-white">반품 추적 분석 및 시즌 가동 대응</h4>
+                </div>
+                <p class="text-xs text-gray-400 leading-relaxed">
+                  수량 음수(반품) 비중 해소를 위해 품질 등급 및 파손 사유의 수집 전산화가 요구됩니다. 또한 4분기 연말 대형 프로모션 트래픽/물류 리드타임에 최적화된 오토스케일링 인프라와 3분기 선확보 재고 체계를 세워야 합니다.
+                </p>
+              </div>
+
+            </div>
+
+            <!-- 타임라인 형태의 실행 로드맵 -->
+            <div class="space-y-6">
+              <h3 class="text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-timeline text-purple-400"></i>추진 과제별 타임라인</h3>
+              
+              <div class="relative border-l-2 border-gray-800 ml-4 pl-6 space-y-8">
+                
+                <!-- 단기 -->
+                <div class="relative">
+                  <div class="absolute -left-[31px] top-0.5 bg-cyan-500 w-4 h-4 rounded-full border-4 border-darkbg"></div>
+                  <div>
+                    <span class="text-[10px] font-bold text-cyan-400 bg-cyan-900/30 px-2 py-0.5 rounded border border-cyan-500/20">단기 (1~3개월)</span>
+                    <h4 class="text-sm font-bold text-white mt-1.5">안전재고 실시간 대시보드 및 VIP 스페셜 혜택</h4>
+                    <p class="text-xs text-gray-400 mt-1 leading-relaxed">
+                      베스트셀러 10종 실시간 재고 추적, 주문 피크 타임대 CS 집중 배치, 상위 100대 바이어 전용 특화 오퍼 발행을 통한 조기 이탈 방지 실행.
+                    </p>
+                  </div>
+                </div>
+
+                <!-- 중기 -->
+                <div class="relative">
+                  <div class="absolute -left-[31px] top-0.5 bg-purple-500 w-4 h-4 rounded-full border-4 border-darkbg"></div>
+                  <div>
+                    <span class="text-[10px] font-bold text-purple-400 bg-purple-900/30 px-2 py-0.5 rounded border border-purple-500/20">중기 (4~6개월)</span>
+                    <h4 class="text-sm font-bold text-white mt-1.5">독일/프랑스 거점 현지화 마케팅 및 테마 패키징 런칭</h4>
+                    <p class="text-xs text-gray-400 mt-1 leading-relaxed">
+                      주요 유럽국 현지 결제 수단 추가, TF-IDF 다빈도 키워드('set', 'pink') 묶음 기획 제품 개발 및 출시로 AOV 극대화 유도.
+                    </p>
+                  </div>
+                </div>
+
+                <!-- 장기 -->
+                <div class="relative">
+                  <div class="absolute -left-[31px] top-0.5 bg-amber-500 w-4 h-4 rounded-full border-4 border-darkbg"></div>
+                  <div>
+                    <span class="text-[10px] font-bold text-amber-400 bg-amber-900/30 px-2 py-0.5 rounded border border-amber-500/20">장기 (6개월 이상)</span>
+                    <h4 class="text-sm font-bold text-white mt-1.5">유럽 현지 풀필먼트 센터 파트너십 구축 및 물류 정비</h4>
+                    <p class="text-xs text-gray-400 mt-1 leading-relaxed">
+                      서유럽권역 배송일을 3일 이내로 압축하는 물류 현지 허브 개시 및 파손 위험 상품에 대한 패키징 공정 리뉴얼로 반품률 감소.
+                    </p>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+
+    <!-- 하단 푸터 -->
+    <footer class="glass-card text-center py-4 mt-auto border-t border-gray-800">
+      <p class="text-xs text-gray-500">© 2026 Online Retail Advanced Business Analysis. All rights reserved.</p>
+    </footer>
+
+  </div>
+
+  <!-- 대시보드 로직 자바스크립트 -->
+  <script>
+    // 탭 전환 상태 및 차트 활성화 체크용 변수
+    let initializedTabs = {
+      'overview': true, // 첫 페이지이므로 즉시 초기화
+      'sales-time': false,
+      'customer-country': false,
+      'product-keyword': false,
+      'dist-corr': false
+    };
+
+    // 차트 인스턴스 전역 보관함
+    let charts = {};
+
+    // Chart.js 글로벌 환경설정
+    Chart.defaults.color = 'rgba(255, 255, 255, 0.6)';
+    Chart.defaults.font.family = 'Inter, sans-serif';
+    Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.05)';
+
+    // 공통 툴팁 및 범례 설정
+    const commonPlugins = {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#0f172a',
+        titleColor: '#fff',
+        bodyColor: '#cbd5e1',
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+        borderWidth: 1,
+        padding: 10,
+        cornerRadius: 8
+      }
+    };
+
+    // 페이지 로딩 시 첫 화면 차트 즉시 로드
+    window.addEventListener('DOMContentLoaded', () => {
+      initOverviewCharts();
+    });
+
+    // 탭 전환 핸들러
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+      });
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.className = 'tab-btn px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 text-gray-400 hover:bg-gray-800 hover:text-white border border-transparent';
+      });
+
+      const activeContent = document.getElementById(`content-${tabId}`);
+      const activeBtn = document.getElementById(`tab-${tabId}`);
+      
+      activeContent.classList.add('active');
+      activeBtn.className = 'tab-btn px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 bg-cyan-600/30 text-cyan-200 border border-cyan-500/30 shadow-lg shadow-cyan-500/10';
+
+      // 탭 첫 방문 시에만 차트 초기화 (지연 로딩 적용)
+      if (!initializedTabs[tabId]) {
+        if (tabId === 'sales-time') initSalesTimeCharts();
+        if (tabId === 'customer-country') initCustomerCountryCharts();
+        if (tabId === 'product-keyword') initProductKeywordCharts();
+        if (tabId === 'dist-corr') initDistCorrCharts();
+        initializedTabs[tabId] = true;
+      }
+    }
+
+    // 1. 종합 대시보드 탭 차트 생성
+    function initOverviewCharts() {
+      // 월별 매출 요약 차트
+      const ctx1 = document.getElementById('chart-monthly-summary').getContext('2d');
+      charts['monthlySummary'] = new Chart(ctx1, {
+        type: 'line',
+        data: {
+          labels: ['10-12', '11-01', '11-02', '11-03', '11-04', '11-05', '11-06', '11-07', '11-08', '11-09', '11-10', '11-11', '11-12'],
+          datasets: [{
+            label: '매출액 (£)',
+            data: [748957, 560000, 498000, 683000, 493000, 723333, 691123, 681000, 682000, 1017596, 1074306, 1461756, 430000],
+            borderColor: '#06b6d4',
+            backgroundColor: 'rgba(6, 182, 212, 0.15)',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.4,
+            pointBackgroundColor: '#06b6d4',
+            pointRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: commonPlugins,
+          scales: {
+            y: { grid: { color: 'rgba(255,255,255,0.05)' } },
+            x: { grid: { display: false } }
+          }
+        }
+      });
+
+      // 요일별 주문 요약 차트
+      const ctx2 = document.getElementById('chart-weekly-summary').getContext('2d');
+      charts['weeklySummary'] = new Chart(ctx2, {
+        type: 'bar',
+        data: {
+          labels: ['월', '화', '수', '목', '금', '토', '일'],
+          datasets: [{
+            data: [95116, 101802, 94565, 103857, 82193, 433, 64375],
+            backgroundColor: 'rgba(168, 85, 247, 0.75)',
+            hoverBackgroundColor: '#a855f7',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: commonPlugins,
+          scales: {
+            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { display: false } },
+            x: { grid: { display: false } }
+          }
+        }
+      });
+
+      // 국가별 주문 점유율 요약 차트 (도넛)
+      const ctx3 = document.getElementById('chart-country-summary').getContext('2d');
+      charts['countrySummary'] = new Chart(ctx3, {
+        type: 'doughnut',
+        data: {
+          labels: ['영국', '독일', '프랑스', '아일랜드', '기타'],
+          datasets: [{
+            data: [490300, 9480, 8541, 8184, 20136],
+            backgroundColor: [
+              'rgba(6, 182, 212, 0.8)',
+              'rgba(168, 85, 247, 0.8)',
+              'rgba(236, 72, 153, 0.8)',
+              'rgba(245, 158, 11, 0.8)',
+              'rgba(107, 114, 128, 0.8)'
+            ],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: true,
+              position: 'right',
+              labels: { boxWidth: 12, font: { size: 10 } }
+            },
+            tooltip: commonPlugins.tooltip
+          },
+          cutout: '70%'
+        }
+      });
+    }
+
+    // 2. 매출 & 시간 분석 탭 차트 생성
+    function initSalesTimeCharts() {
+      // 월별 매출 상세
+      const ctx1 = document.getElementById('chart-monthly-detail').getContext('2d');
+      charts['monthlyDetail'] = new Chart(ctx1, {
+        type: 'line',
+        data: {
+          labels: ['10년 12월', '11년 1월', '11년 2월', '11년 3월', '11년 4월', '11년 5월', '11년 6월', '11년 7월', '11년 8월', '11년 9월', '11년 10월', '11년 11월', '11년 12월'],
+          datasets: [{
+            label: '총 매출',
+            data: [748957, 560000, 498000, 683000, 493000, 723333, 691123, 681000, 682000, 1017596, 1074306, 1461756, 430000],
+            borderColor: '#06b6d4',
+            backgroundColor: 'rgba(6, 182, 212, 0.05)',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.3,
+            pointBackgroundColor: '#06b6d4',
+            pointRadius: 5
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: commonPlugins,
+          scales: {
+            y: { grid: { color: 'rgba(255,255,255,0.05)' } },
+            x: { grid: { display: false } }
+          }
+        }
+      });
+
+      // 시간대별 주문 분포
+      const ctx2 = document.getElementById('chart-hourly-detail').getContext('2d');
+      charts['hourlyDetail'] = new Chart(ctx2, {
+        type: 'bar',
+        data: {
+          labels: ['6시', '7시', '8시', '9시', '10시', '11시', '12시', '13시', '14시', '15시', '16시', '17시', '18시', '19시', '20시'],
+          datasets: [{
+            data: [100, 800, 9000, 34000, 49000, 57325, 78721, 72019, 54168, 45349, 28000, 15000, 8000, 3500, 1200],
+            backgroundColor: 'rgba(245, 158, 11, 0.7)',
+            hoverBackgroundColor: '#f59e0b',
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: commonPlugins,
+          scales: {
+            y: { grid: { color: 'rgba(255,255,255,0.05)' } },
+            x: { grid: { display: false } }
+          }
+        }
+      });
+
+      // 요일별 주문 상세
+      const ctx3 = document.getElementById('chart-weekly-detail').getContext('2d');
+      charts['weeklyDetail'] = new Chart(ctx3, {
+        type: 'bar',
+        data: {
+          labels: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+          datasets: [{
+            label: '주문 건수',
+            data: [95116, 101802, 94565, 103857, 82193, 433, 64375],
+            backgroundColor: 'rgba(168, 85, 247, 0.7)',
+            hoverBackgroundColor: '#a855f7',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: commonPlugins,
+          scales: {
+            y: { grid: { color: 'rgba(255,255,255,0.05)' } },
+            x: { grid: { display: false } }
+          }
+        }
+      });
+    }
+
+    // 3. 고객 & 국가 세분화 탭 차트 생성
+    function initCustomerCountryCharts() {
+      // 국가별 Top 30 (영국 제외)
+      const ctx1 = document.getElementById('chart-country-top30').getContext('2d');
+      charts['countryTop30'] = new Chart(ctx1, {
+        type: 'bar',
+        data: {
+          labels: ['독일', '프랑스', '아일랜드', '스페인', '네덜란드', '벨기에', '스위스', '포르투갈', '호주', '노르웨이', '이탈리아', '채널제도', '핀란드', '키프로스', '스웨덴', '오스트리아', '덴마크', '폴란드', '일본', '이스라엘', '싱가포르', '아이슬란드', '미국', '캐나다', '그리스', '몰타', '아랍에미리트', '유럽연합'],
+          datasets: [{
+            data: [9480, 8541, 8184, 2528, 2371, 2069, 1994, 1510, 1258, 1086, 803, 758, 695, 622, 462, 401, 389, 341, 321, 297, 222, 182, 179, 151, 146, 112, 68, 61],
+            backgroundColor: 'rgba(6, 182, 212, 0.75)',
+            hoverBackgroundColor: '#06b6d4',
+            borderRadius: 4
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: commonPlugins,
+          scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.05)' } },
+            y: { grid: { display: false } }
+          }
+        }
+      });
+
+      // 고객별 Top 30 구매액
+      const ctx2 = document.getElementById('chart-customer-top30').getContext('2d');
+      charts['customerTop30'] = new Chart(ctx2, {
+        type: 'bar',
+        data: {
+          labels: ['14646.0', '18102.0', '17450.0', '14911.0', '12415.0', '14156.0', '17511.0', '16684.0', '13694.0', '15311.0', '13089.0', '14096.0', '15061.0', '17949.0', '15769.0', '16029.0', '12748.0', '14298.0', '14088.0', '17841.0', '13798.0', '16422.0', '12931.0', '15838.0', '15159.0', '13408.0', '13777.0', '12753.0', '12678.0', '12536.0'],
+          datasets: [{
+            data: [279489, 256438, 187482, 132572, 124564, 117396, 91062, 80950, 65030, 60767, 58000, 55000, 53000, 51000, 49000, 48000, 46000, 45000, 43000, 41000, 39000, 38000, 37000, 36000, 35000, 34000, 33000, 32000, 31000, 30000],
+            backgroundColor: 'rgba(236, 72, 153, 0.75)',
+            hoverBackgroundColor: '#ec4899',
+            borderRadius: 4
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: commonPlugins,
+          scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.05)' } },
+            y: { grid: { display: false } }
+          }
+        }
+      });
+    }
+
+    // 4. 상품 & 키워드 분석 탭 차트 생성
+    function initProductKeywordCharts() {
+      // 상품 코드별 Top 30
+      const ctx1 = document.getElementById('chart-product-top30').getContext('2d');
+      charts['productTop30'] = new Chart(ctx1, {
+        type: 'bar',
+        data: {
+          labels: ['85123A', '22423', '85099B', '47566', '20725', '84879', '22720', '22197', '21212', '20727', '22457', '22383', '20728', '22384', '22960', '22382', '22666', '22722', '20724', '22961', '21931', '22411', '82484', '21034', '22086', '22386', '21213', '20719', '84077', '22554'],
+          datasets: [{
+            data: [2301, 2197, 2156, 1727, 1639, 1500, 1450, 1420, 1380, 1350, 1300, 1250, 1220, 1200, 1180, 1150, 1120, 1100, 1080, 1050, 1030, 1010, 990, 980, 960, 950, 940, 930, 920, 910],
+            backgroundColor: 'rgba(168, 85, 247, 0.75)',
+            hoverBackgroundColor: '#a855f7',
+            borderRadius: 4
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: commonPlugins,
+          scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.05)' } },
+            y: { grid: { display: false } }
+          }
+        }
+      });
+
+      // 상품 설명 키워드 TF-IDF Top 30
+      const ctx2 = document.getElementById('chart-keyword-top30').getContext('2d');
+      charts['keywordTop30'] = new Chart(ctx2, {
+        type: 'bar',
+        data: {
+          labels: ['set', 'pink', 'blue', 'vintage', 'heart', 'red', 'bag', 'box', 'christmas', 'glass', 'metal', 'flower', 'holder', 'design', 'white', 'hanging', 'cake', 'light', 'cream', 'rose', 'clock', 'home', 'sign', 'water', 'tea', 'bottle', 'paper', 'love', 'mugs', 'sweet'],
+          datasets: [{
+            data: [320.62, 256.41, 190.98, 185.20, 175.40, 165.10, 150.30, 140.20, 130.50, 120.10, 110.40, 105.20, 100.80, 95.30, 90.10, 85.20, 80.50, 78.10, 75.60, 72.40, 70.10, 68.30, 65.40, 63.20, 61.10, 59.50, 57.30, 55.10, 52.80, 50.20],
+            backgroundColor: 'rgba(6, 182, 212, 0.75)',
+            hoverBackgroundColor: '#06b6d4',
+            borderRadius: 4
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: commonPlugins,
+          scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.05)' } },
+            y: { grid: { display: false } }
+          }
+        }
+      });
+    }
+
+    // 5. 분포 & 상관 분석 탭 차트 생성
+    function initDistCorrCharts() {
+      // 수량 분포
+      const ctx1 = document.getElementById('chart-qty-dist').getContext('2d');
+      charts['qtyDist'] = new Chart(ctx1, {
+        type: 'bar',
+        data: {
+          labels: ['-1000이하', '-100~-10', '-10~0', '0~10', '10~100', '100~1000', '1000이상'],
+          datasets: [{
+            data: [50, 3200, 5200, 420000, 98000, 8500, 120],
+            backgroundColor: 'rgba(6, 182, 212, 0.7)',
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: commonPlugins,
+          scales: {
+            y: { type: 'logarithmic', grid: { color: 'rgba(255,255,255,0.05)' } },
+            x: { grid: { display: false } }
+          }
+        }
+      });
+
+      // 단가 분포
+      const ctx2 = document.getElementById('chart-price-dist').getContext('2d');
+      charts['priceDist'] = new Chart(ctx2, {
+        type: 'bar',
+        data: {
+          labels: ['0~1', '1~2', '2~3', '3~5', '5~10', '10~20', '20~50', '50이상'],
+          datasets: [{
+            data: [125000, 180000, 110000, 75000, 32000, 9500, 3200, 1650],
+            backgroundColor: 'rgba(16, 185, 129, 0.7)',
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: commonPlugins,
+          scales: {
+            y: { type: 'logarithmic', grid: { color: 'rgba(255,255,255,0.05)' } },
+            x: { grid: { display: false } }
+          }
+        }
+      });
+
+      // 수량 vs 단가 산점도
+      const ctx3 = document.getElementById('chart-qty-price-scatter').getContext('2d');
+      // 대표 샘플링된 데이터 포인트들
+      const scatterPoints = [
+        {x: 10, y: 2.08}, {x: 15, y: 1.25}, {x: 5, y: 4.13}, {x: 2, y: 8.5}, {x: 1, y: 12.0},
+        {x: 80, y: 1.05}, {x: 120, y: 0.85}, {x: 50, y: 2.1}, {x: 300, y: 0.65}, {x: 500, y: 0.4},
+        {x: -12, y: 2.5}, {x: -80, y: 1.5}, {x: 1000, y: 0.35}, {x: 5000, y: 0.18}, {x: 10000, y: 0.12},
+        {x: 20000, y: 0.1}, {x: 80995, y: 1.06}, {x: -80995, y: 1.06}, {x: 1, y: 295.0}, {x: 1, y: 1250.0},
+        {x: 3, y: 18.0}, {x: 8, y: 9.95}, {x: 24, y: 3.75}, {x: 48, y: 2.55}, {x: 144, y: 1.65}
+      ];
+
+      charts['qtyPriceScatter'] = new Chart(ctx3, {
+        type: 'scatter',
+        data: {
+          datasets: [{
+            label: '주문 트랜잭션',
+            data: scatterPoints,
+            backgroundColor: 'rgba(168, 85, 247, 0.75)',
+            pointRadius: 6,
+            pointHoverRadius: 8
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: commonPlugins,
+          scales: {
+            x: { 
+              title: { display: true, text: '수량 (Quantity)' },
+              grid: { color: 'rgba(255,255,255,0.05)' }
+            },
+            y: { 
+              type: 'logarithmic',
+              title: { display: true, text: '단가 (UnitPrice, Log)' },
+              grid: { color: 'rgba(255,255,255,0.05)' }
+            }
+          }
+        }
+      });
+    }
+
+    // AOV 시뮬레이터 함수
+    function simulateAOV(value) {
+      document.getElementById('discount-val').innerText = value + '%';
+      
+      // 실제 할인 매칭 시뮬레이션 계산 모델
+      const baseVVIPSales = 2200000; // 대략적인 VVIP 연간 매출 베이스
+      const discountRatio = value / 100;
+      
+      // 고객 리텐션 증가 시뮬레이션 (할인율이 올라갈수록 리텐션 상승)
+      const retention = Math.min(95 + (value * 0.25), 99.8).toFixed(1);
+      document.getElementById('vip-retention').innerText = retention + '%';
+
+      // 순이익 변동 시뮬레이션 (적절한 할인율 5~10%일 때 시너지 최대, 너무 높으면 매출 이익 감소)
+      let profitChange;
+      if (value === '0') {
+        profitChange = 0;
+      } else {
+        // U자형 커브 피팅
+        profitChange = Math.round(baseVVIPSales * (0.09 * (value / 5) - 0.045 * Math.pow(value / 5, 2)));
+      }
+
+      const formatted = (profitChange >= 0 ? '+' : '') + '£' + profitChange.toLocaleString();
+      const changeEl = document.getElementById('sales-change');
+      changeEl.innerText = formatted;
+
+      if (profitChange >= 0) {
+        changeEl.className = 'text-sm font-bold text-emerald-400';
+      } else {
+        changeEl.className = 'text-sm font-bold text-pink-400';
+      }
+    }
+  </script>
+</body>
+</html>
